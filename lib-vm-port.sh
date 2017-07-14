@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# DEL_NAMESPACES(ns [, ns ... ])
 #
 # Delete namespaces from the running OS
 
@@ -10,7 +9,6 @@ function del_ns ()
   ip netns del $name
 }
 
-# ADD_NAMESPACES(ns [, ns ... ])
 #
 # Add new namespaces, if ns exists, the old one
 # will be remove before new ones are installed.
@@ -49,8 +47,8 @@ function add_veth ()
 namespace=$1
 vm=$1
 ip_addr=$2
-mac_addr=$3
-gateway=$4
+gateway=$3
+mac_addr=$4
       ip link add veth-$vm type veth peer name ovs-$vm || return 77
       #CONFIGURE_VETH_OFFLOADS([$1])
       ip link set veth-$vm netns $vm
@@ -59,12 +57,12 @@ gateway=$4
       ns_exec $vm "ip addr add $ip_addr dev veth-$vm"
       ns_exec $vm "ip link set dev veth-$vm up"
 
-      if test -n "$mac_addr"; then
-        ns_exec $vm "ip link set dev veth-$vm address $mac_addr"
-      fi
-
       if test -n "$gateway"; then
         ns_exec $vm "ip route add default via $gateway"
+      fi
+
+      if test -n "$mac_addr"; then
+        ns_exec $vm "ip link set dev veth-$vm address $mac_addr"
       fi
 }
 
@@ -76,22 +74,14 @@ function vm_add()
   fi
   vm_name=$1
   ip=$2  #format as x.x.x.x/length
-  mac=$3
-  gw=$4
-  switch=$5 #logical_switch_port
+  gw=$3
+  mac=$4
 
   add_ns $vm_name 
-  echo add_veth $vm_name $ip $mac $gw
-  add_veth $vm_name $ip $mac $gw 
-  
-  #add_ns vm2 
-  #add_veth tap2 vm2 br-int 192.168.0.22/24 50:54:00:00:00:02 192.168.0.1 sw0-port2
-
-  #add_ns vm3 
-  #add_veth tap3 vm3 br-int 192.168.0.33/24 50:54:00:00:00:03 192.168.0.1 sw0-port3
-
-  #add_ns vm4
-  #add_veth tap4 vm4 br-int 11.0.0.2/24 50:54:00:00:11:02 11.0.0.1 sw1-port1
+  ns_exec $vm_name "ifconfig lo up"
+  echo add_veth $vm_name $ip $gw $mac
+  add_veth $vm_name $ip $gw $mac
+   
 }
 
 function vm_del()

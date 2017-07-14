@@ -1,6 +1,84 @@
 #!/bin/bash
+source util.sh
 
-declare random_mac
+
+# View a summary of the configuration
+function topo_show(){
+  ovn-nbctl show
+}
+
+function switch_add()
+{
+ovn-nbctl ls-add $1
+}
+function switch_del()
+{
+ovn-nbctl ls-del $1
+}
+function switch_port_add()
+{
+  sw=$1
+  vm=$2
+  lsp="lsp_$sw-$vm"
+  mac="$(get_mac $vm)"
+  ip="$(get_ip $vm)"
+  ovn-nbctl lsp-add $sw $lsp
+  ovn-nbctl lsp-set-addresses $lsp "$mac $ip"
+  ovs-vsctl set interface ovs-$vm external-ids:iface-id="$lsp"
+
+  echo bind $vm with logical switch port $lsp
+}
+function switch_port_del()
+{
+  sw=$1
+  vm=$2
+  lsp="lsp_$sw-$vm"
+  echo ovs-nbctl lsp-del $lsp
+  ovn-nbctl lsp-del $lsp
+}
+function router_add()
+{
+  ovn-nbctl lr-add $1
+}
+function router_del()
+{
+  ovn-nbctl lr-del $1
+}
+function router_interface_add()
+{
+  router=$1
+  switch=$2
+  net=$3 # x.x.x.x/length
+  ip=${net%/*}
+  lrp="lrp-$router-to-$switch"
+  lsp="$lrp-attach"
+  mac="$(alloc_mac)"
+  echo ovn-nbctl lrp-add $router $lrp $mac $net
+  ovn-nbctl lrp-add $router $lrp $mac $net
+  echo ovn-nbctl lsp-add $switch $lsp
+  ovn-nbctl lsp-add $switch $lsp
+  echo ovn-nbctl lsp-set-type $lsp router
+  ovn-nbctl lsp-set-type $lsp router
+  echo ovn-nbctl lsp-set-addresses $lsp "$mac $ip"
+  ovn-nbctl lsp-set-addresses $lsp "$mac $ip"
+  echo ovn-nbctl lsp-set-options $lsp router-port=$lrp
+  ovn-nbctl lsp-set-options $lsp router-port=$lrp
+}
+function router_interface_del()
+{
+  router=$1
+  switch=$2
+  lrp="lrp-$router-to-$switch"
+  lsp="$lrp-attach"
+  echo ovn-nbctl lrp-del $lrp 
+  ovn-nbctl lrp-del $lrp 
+  echo ovn-nbctl lsp-del $lsp
+  ovn-nbctl lsp-del $lsp
+}
+
+
+echo 'import lib-ovn-net...'
+############main ############
 function topo_create()
 {
   # Create the first logical switch with 3 port
@@ -43,72 +121,6 @@ function topo_create()
   ovn-nbctl lsp-set-options lrp1-attachment router-port=lrp1
 
 }
-
-# View a summary of the configuration
-function topo_show(){
-  ovn-nbctl show
-}
-
-function switch_add()
-{
-ovn-nbctl ls-add $1
-}
-function switch_del()
-{
-ovn-nbctl ls-del $1
-}
-function switch_port_add()
-{
-  sw=$1
-  vm=$2
-  lsp="lsp_$sw-$vm"
-  mac=
-  ip=
-  ovn-nbctl lsp-add $sw $lsp
-  ovn-nbctl lsp-set-addresses $lsp "$mac $ip"
-  ovs-vsctl set interface ovs-$vm external-ids:iface-id="$lsp"
-
-  echo bind $vm with logical switch port $lsp
-}
-function switch_port_del()
-{
-  sw=$1
-  vm=$2
-  lsp="lsp_$sw-$vm"
-  echo ovs-nbctl lsp-del $lsp
-  ovn-nbctl lsp-del $lsp
-}
-function router_add()
-{
-  ovn-nbctl lr-add $1
-}
-function router_del()
-{
-  ovn-nbctl lr-del $1
-}
-function alloc_mac(){
-  MACADDR="52:54:$(dd if=/dev/urandom count=1 2>/dev/null | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\).*$/\1:\2:\3:\4/')";
-  random_mac=$MACADDR
-}
-function router_interface_add()
-{
-  # Create gateway for sw0 on lr0
-  router=$1
-  switch=$2
-  ip=$3 # x.x.x.x/length
-  lrp="lrp-$router-to-$switch"
-  lsp="$lrp-attach"
-  alloc_mac;
-  ovn-nbctl lrp-add $router $lrp $random_mac $ip
-  ovn-nbctl lsp-add $sw $lsp
-  ovn-nbctl lsp-set-type $lsp router
-  ovn-nbctl lsp-set-addresses $lsp0 $mac
-  ovn-nbctl lsp-set-options $lsp router-port=$lrp
-}
-
-
-echo 'import lib-ovn-net...'
-############main ############
 #topo_create
 #topo_show
 ############main ############
