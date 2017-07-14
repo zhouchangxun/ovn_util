@@ -1,1 +1,1 @@
-ip netns exec vm2 python -m SimpleHTTPServer 80
+ip netns exec member1 python -m SimpleHTTPServer 80
